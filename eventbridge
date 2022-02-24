@@ -28,3 +28,23 @@ var params = {
     });
 
 }
+
+
+## Using Python
+
+import json
+import boto3
+client = boto3.client('events')
+
+def lambda_handler(event, context):
+    
+    response = client.put_events(
+    Entries=[
+            {
+                'Source': 'users',
+                'DetailType': 'CreateUser',
+                'Detail': '{"TestKeyPython1": "TestValuePython1"}',
+                'EventBusName': 'ram',
+            },
+            ]
+    )
