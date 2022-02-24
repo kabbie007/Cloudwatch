@@ -1,4 +1,4 @@
-##Lambda function code to send custom events to a custom bus
+##Lambda function code to send custom events to a custom bus JS
 
 const AWS = require("aws-sdk");
 var eventbridge = new AWS.EventBridge({
