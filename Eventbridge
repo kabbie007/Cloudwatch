@@ -1,0 +1,35 @@
+## Delete any rule in your eventbridge that does not have any targets
+
+## Make sure you are in the appropriate region and also give your Lambda or Machine the needed IAM permissions to perform the follow API calls on your default bus and rules in it..
+## API calls permissions required are: (list_rules,list_targets_by_rule,delete_rule
+## resources eventbridge bus and rules in the region where you are running the API calls for.
+
+import json
+import boto3
+
+client = boto3.client('events')
+
+def lambda_handler(event, context):
+    ## 100 is the max per run, therefore nexttoken might be needed to go through more than 100 rules, to get the next 100 rules.
+    rules = client.list_rules(Limit=100)['Rules']
+    
+
+    for rule in rules:
+
+        rule_targets = client.list_targets_by_rule(
+        Rule=rule['Name']
+         )['Targets']
+         
+        target_ids = [target['Id'] for target in rule_targets]
+        
+        if target_ids==[]:
+            print(' rule has empty target is: ')
+            print(rule['Name'])
+            print('will be deleted..')
+            
+            delete_rule_response = client.delete_rule(
+            Name=rule['Name'])
+            print(delete_rule_response)
+            
+        
+        
