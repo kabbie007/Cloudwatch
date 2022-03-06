@@ -10,15 +10,15 @@ import boto3
 client = boto3.client('events')
 
 def lambda_handler(event, context):
-    ## 100 is the max per run, therefore nexttoken might be needed to go through more than 100 rules, to get the next 100 rules.
-    rules = client.list_rules(Limit=100)['Rules']
     
+    rules = client.list_rules(Limit=100)
+    token = rules['NextToken']
 
-    for rule in rules:
-
-        rule_targets = client.list_targets_by_rule(
-        Rule=rule['Name']
-         )['Targets']
+    while True:
+        for rule in rules['Rules']:
+            print(rule['Name'])
+            rule_targets = client.list_targets_by_rule(
+            Rule=rule['Name'])['Targets']
          
         target_ids = [target['Id'] for target in rule_targets]
         
@@ -30,6 +30,10 @@ def lambda_handler(event, context):
             delete_rule_response = client.delete_rule(
             Name=rule['Name'])
             print(delete_rule_response)
-            
-        
-        
+    
+        if len(rules['Rules']) < 100:    
+            break
+        else:
+            rules = client.list_rules(NextToken=token,Limit=5)
+            if len(rules['Rules']) == 100:
+                token = rules['NextToken']
