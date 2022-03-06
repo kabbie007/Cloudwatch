@@ -1,8 +1,8 @@
-## Delete any rule in your eventbridge that does not have any targets
+## This code will delete any rule in your eventbridge that does not have any targets
 
-## Make sure you are in the appropriate region and also give your Lambda or Machine the needed IAM permissions to perform the follow API calls on your default bus and rules in it..
-## API calls permissions required are: (list_rules,list_targets_by_rule,delete_rule
-## resources eventbridge bus and rules in the region where you are running the API calls for.
+## Make sure you are in the appropriate region and also give your Lambda or Machine the needed IAM permissions to perform the following API calls on your default bus and rules in it. You can modify the bus as well if needed.
+## API calls permissions required are: (list_rules,list_targets_by_rule,delete_rule)
+## Resources eventbridge bus and rules in the region where you are running the API calls for.
 
 import json
 import boto3
@@ -12,7 +12,8 @@ client = boto3.client('events')
 def lambda_handler(event, context):
     
     rules = client.list_rules(Limit=100)
-    token = rules['NextToken']
+    if len(rules['Rules']) == 100:
+        token = rules['NextToken']
 
     while True:
         for rule in rules['Rules']:
