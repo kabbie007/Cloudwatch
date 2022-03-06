@@ -12,6 +12,7 @@ client = boto3.client('events')
 def lambda_handler(event, context):
     
     rules = client.list_rules(Limit=100)
+ 
     if len(rules['Rules']) == 100:
         token = rules['NextToken']
 
@@ -21,20 +22,20 @@ def lambda_handler(event, context):
             rule_targets = client.list_targets_by_rule(
             Rule=rule['Name'])['Targets']
          
-        target_ids = [target['Id'] for target in rule_targets]
-        
-        if target_ids==[]:
-            print(' rule has empty target is: ')
-            print(rule['Name'])
-            print('will be deleted..')
+            target_ids = [target['Id'] for target in rule_targets]
+  
+            if target_ids==[]:
+                print(' rule has empty target is: ')
+                print(rule['Name'])
+                print('will be deleted..')
             
-            delete_rule_response = client.delete_rule(
-            Name=rule['Name'])
-            print(delete_rule_response)
+                delete_rule_response = client.delete_rule(
+                Name=rule['Name'])
+                print(delete_rule_response)
     
         if len(rules['Rules']) < 100:    
             break
         else:
-            rules = client.list_rules(NextToken=token,Limit=5)
+            rules = client.list_rules(NextToken=token,Limit=20)
             if len(rules['Rules']) == 100:
                 token = rules['NextToken']
