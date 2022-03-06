@@ -36,6 +36,8 @@ def lambda_handler(event, context):
         if len(rules['Rules']) < 100:    
             break
         else:
-            rules = client.list_rules(NextToken=token,Limit=20)
+            rules = client.list_rules(NextToken=token,Limit=100)
             if len(rules['Rules']) == 100:
                 token = rules['NextToken']
+    
+        
