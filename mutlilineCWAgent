@@ -1,0 +1,159 @@
+this is for the open source repository in Github for the CloudWatch Agent.
+
+By following this article you will be able to:
+
+1. Exclude a certain file (Or multiple ones) from being considered for fetching logs and sending them to the CloudWatch logs.
+
+2. Send all logs in each log file in the logs folder to an independent log stream.
+
+
+NOTE: This feature is supported on the newer Version of the Cloudwatch Agent "1.247347.5b250583". On older versions it might throw errors if you are going to test it. 
+
+Here is the link we are going to use for the Configuration file on Github for the CloudWatch Agent:-
+
+https://github.com/aws/amazon-cloudwatch-agent/blob/39d84b8e3f5215a3e6d880b54a88e63a692ecd64/plugins/inputs/logfile/README.md
+
+
+From the link mentioned we are going to use the following:-
+
+file_path =
+"/var/log/*.log" ## Regular expression for log files to ignore
+blacklist = "journal|syslog" ## Publish all log files that match
+file_path publish_multi_logs = true ## Push multiple log files into separate log
+streams
+
+
+A. Prerequisites for creating a Windows EC2 instance for this lab:-
+
+    AMI: Microsoft Windows Server 2019 Base - ami-02642c139a9dfb378
+
+    Please follow the link if you need a step by step instructions for creating the EC2 instance, complete Prerequisites, Step 1 and Step 2:-
+
+https://docs.aws.amazon.com/AWSEC2/latest/WindowsGuide/EC2_GetStarted.html#ec2-getstarted-prereqs
+
+    Make sure you attach the right IAM role to allow the instance to send logs to CloudWatch, you can attach the policy “CloudWatchAgentAdminPolicy“ to the IAM role the EC2 instance is using, for more information please follow the link:-
+
+https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/create-iam-roles-for-cloudwatch-agent.html#create-iam-roles-for-cloudwatch-agent-roles
+
+    You should be able to Connect to your instance now if you still unsure about how to connect to your EC2 instance please follow the link:-
+
+https://docs.aws.amazon.com/AWSEC2/latest/WindowsGuide/EC2_GetStarted.html#ec2-connect-to-instance-windows
+
+
+B. Installing CloudWatch Agent:
+
+    In this example I am using a Windows Machine, therefore I will be downloading the agent from the following link:-
+
+https://s3.amazonaws.com/amazoncloudwatch-agent/windows/amd64/latest/amazon-cloudwatch-agent.msi
+
+
+    For other AMI or Operating Systems please follow this link:-
+
+https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/download-cloudwatch-agent-commandline.html#download-CloudWatch-Agent-on-EC2-Instance-commandline-first
+
+
+C. Modifying CloudWatch Agent Configuration File:
+
+    After downloading the CloudWatch Agent go ahead and run the install icon. Now before we create the Configuration file we have to make sure we have the needed log files, I have created three logs files in a folder called logs in the C:\ disk. For testing purposes the three log files will be created in the path folder “C:\logs\”:-
+
+
+    File “one” which will contain few dummy logs. Here is an example of a dummy log I used:-
+
+Mar 3 01:00:18 cw-training-nginx dhclient[962]: DHCPACK of 10.120.2.64 from 1.1.1.1
+
+
+    File “two” which will contain few dummy logs as well. Here is an example of a dummy log I used:-
+
+Mar 3 23:39:18 cw-training-nginx dhclient[962]: DHCPACK of 10.120.2.64 from 2.2.2.2
+
+
+    File “three” which will contain few dummy logs as well. Here is an example of a dummy log I used:-
+
+Mar  3 23:37:18 cw-training-nginx dhclient[962]: DHCPACK of 10.120.2.64 from 3.3.3.3
+
+
+    In the next step let us go to the directory “C:\Program Files\Amazon\AmazonCloudWatchAgent\”, and create a JSON file called "config.json" with the following Configuration in it:- 
+
+----------------------------------------------------------------------------------------------------------------------------
+
+ 
+
+{
+
+            "logs": {
+
+                        "logs_collected": {
+
+                                    "files": {
+
+                                                "collect_list": [
+
+                                                            {
+
+                                                                        "file_path": "C:\\logs\\*",
+
+                                                                        "log_group_name": "testall",
+
+                                                                        "log_stream_name": "{instance_id}",
+
+                                                                        "blacklist":"two",
+
+                                                                        "publish_multi_logs": true
+
+                                                            }
+
+                                                ]
+
+                                    }
+
+                        }
+
+            }
+
+}
+
+ 
+
+----------------------------------------------------------------------------------------------------------------------------
+
+Note: if you would like to exclude the files one and two you should change the blacklist part to
+"blacklist":"one|two"
+
+
+    This Configuration file should have the path "C:\Program Files\Amazon\AmazonCloudWatchAgent\config.json"
+
+
+D. Updating CloudWatch Agent configuration file:
+
+    Let us open a Powershell command line, make sure you run it as an administrator, then run the following commands:-
+
+cd "c:\Program Files\Amazon\AmazonCloudwatchAgent\"
+
+ .\amazon-cloudwatch-agent-ctl.ps1 -a fetch-config -m ec2 -c file:"c:\Program Files\Amazon\AmazonCloudwatchAgent\config.json" -s
+
+    (And then to check for the status of the Cloudwatch Agent)
+
+ .\amazon-cloudwatch-agent-ctl.ps1 -m ec2 -a status
+
+E. Result and Verification:
+
+    Now that we have confirmed that it is running, let us verify how the CloudWatch Agent reacted to the Configuration file from the log file the Cloudwatch Agent writes to, go to the following path:-
+
+C:\ProgramData\Amazon\AmazonCloudWatchAgent\Logs\amazon-cloudwatch-agent
+
+
+    As seen from the logs:-
+
+2021-03-03T23:23:46Z I! [logagent] piping log from testall/i-052bd99eac02c698e_C__logs_one.txt(C:\logs\one.txt) to cloudwatchlogs
+
+2021-03-03T23:23:46Z I! [logagent] piping log from testall/i-052bd99eac02c698e_C__logs_three.txt(C:\logs\three.txt) to cloudwatchlogs                                 
+
+    Which confirms that the CloudWatch Agent is reading the log files “one” and “three”, and it excluded “two”. Also, it is fetching logs from each file and sending them to different log streams:-
+
+
+testall/i-052bd99eac02c698e_C__logs_one.txt
+
+testall/i-052bd99eac02c698e_C__logs_three.txt
+
+    Here are screenshots confirming the logs were delivered to CloudWatch as expected:-
+
