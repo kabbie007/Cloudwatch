@@ -1,0 +1,103 @@
+How to make your alarm disregard taking an action at certain times, or disregard metric data points at certain times.
+
+In this article I will discuss two approaches to make your Alarm disregard taking an action when it is changing to Alarm state. By two methods, the first one is by using the API "DisableAlarmActions", and the second one is by utilizing the conditions of a math expression.
+There is a common Alarm case where customers ask if they can switch off the Alarm during certain times so they do not receive a notification of an expected event that will make the metric go over the threshold, which will result in the Alarm going to alarm state. 
+In this article I will be discussing two methods to achieve the objective of making the Alarm disregard triggering an action when it changes to Alarm state or by making the metric stay outside the threshold by using math expression. Here are the two solutions for this case:-
+1)	In the first method we will be deploying the following solution:-
+
+•	We will start by creating the Lambda function and deploying a code I will provide to you that works as an off/on switch for the Alarm action whenever it is triggered by a Scheduled rule from the Eventbridge. We will be using the API calls (DescribeAlarms, DisableAlarmActions, EnableAlarmActions)[1]. Here is the code we will deploy in the Lambda function:-
+
+##This code will enable/disable an alarm action when running it
+import json
+import boto3
+
+client = boto3.client('cloudwatch')
+
+##Put the Alarm name you want to disable and enable in the following string
+AlarmName = ‘Alarm Name’
+
+def lambda_handler(event, context):
+
+ response = client.describe_alarms(
+    AlarmNames=[
+        AlarmName,
+    ]
+ )
+ 
+ Checker = response['MetricAlarms'][0]['ActionsEnabled']
+ 
+ print(Checker)
+ print(Checker==False)
+ 
+ if Checker==False:
+     response1 = client.enable_alarm_actions(
+    AlarmNames=[
+        AlarmName,
+    ])
+ else:
+     response2 = client.disable_alarm_actions(
+    AlarmNames=[
+        AlarmName,
+    ])
+
+
+
+•	Make sure you replace the String AlarmName in the code to the Alarm name you want to disable/enable. Then create an IAM role for the Lambda function that has the following permissions[2]:-
+
+
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "cloudwatch:EnableAlarmActions",
+                "cloudwatch:DisableAlarmActions",
+                "cloudwatch:DescribeAlarms"
+            ],
+            "Resource": "arn:aws:cloudwatch:us-east-1:*:alarm:*"
+        }
+    ]
+}
+
+
+•	Finally, we have to create two EventBridge Rules, one to disable the Alarm action and the second rule will be a trigger to enable Alarm action. So for the purpose of experimenting this I will create the first rule to disable the Alarm Action at 1 AM UTC everyday, and the second Eventbridge rule will enable the action of the Alarm at 6 AM UTC. So This will be a CRON job expression for both rules[3]:-
+a.	CRON job for the first rule will be (0 1 * * ? *) and add the target to it as the Lambda function we created as per the above instructions.
+b.	CRON job for the first rule will be (0 6 * * ? *) and add the target to it as the same Lambda function.
+  
+•	Next, create the Alarm with the metric you want to experiment with, and add an SNS topic to send you a notification whenever the alarm goes to alarm state.[4]
+
+
+
+
+2)	The second method will be a workaround I find interesting that requires less resources and it will not require you to disable the action of the Alarm, however, you will modify the metric to be out of the threshold during certain times of the day/hours so this will make metric looks like it is within range of the threshold, and it will make the alarm stay in OK state during those times, in this solution we will be following this solution:-
+
+ 
+
+•	First, let’s decide on using a metric the alarm will evaluate. In my example I will be using EC2 CPUUtilization. After selecting the metric I will create a Math Expression as per the following:-
+
+a.	IF(HOUR(m1) >= 1 && HOUR(m1) <6, 0, m1)
+This expression will make the metric have the value 0 between 1 am until 6 am. While in other times it will use the original metric value, as seen from the following scresnhot.
+
+b.	Then we can create an Alarm for this Math Expression with the needed threshold; In my example I will keep it as 0.7 to match the seventy percent when it is over this value, in the above screenshot you will see that the orange line went over the threshold during those times, however, since we are using the math expression it will ignore those values as per the math expression and keep the Alarm in OK state and it will not go to Alarm state during those times when the metric spiked over the threshold.
+
+In this Article I have discussed two methods to make your alarm disregard making an action during certain times. I hope this was insightful. 
+           
+
+References:-
+
+https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_Operations.html
+
+https://docs.aws.amazon.com/lambda/latest/dg/lambda-permissions.html
+
+https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-create-rule-schedule.html#eb-cron-expressions
+
+https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/US_SetupSNS.html
+
+https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/using-metric-math.html#using-IF-expressions
+
+
+
+
+
